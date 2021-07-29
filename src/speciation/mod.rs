@@ -15,6 +15,11 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+pub use age::Age;
+pub use conf::Conf;
+pub use individual::Individual;
+pub use species::Species;
+
 mod age;
 mod conf;
 mod individual;
@@ -22,7 +27,3 @@ mod genus;
 mod species;
 mod population_management;
 
-pub use age::Age;
-pub use conf::Conf;
-pub use individual::Individual;
-pub use species::Species;

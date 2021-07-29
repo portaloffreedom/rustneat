@@ -35,9 +35,9 @@ impl Age {
     }
 
     // Increasers
-    pub fn increase_generations(&mut self) { self.generations+=1; }
-    pub fn increase_evaluations(&mut self) { self.evaluations+=1; }
-    pub fn increase_no_improvements(&mut self) { self.no_improvements+=1; }
+    pub fn increase_generations(&mut self) { self.generations += 1; }
+    pub fn increase_evaluations(&mut self) { self.evaluations += 1; }
+    pub fn increase_no_improvements(&mut self) { self.no_improvements += 1; }
 
     // Resetters
 

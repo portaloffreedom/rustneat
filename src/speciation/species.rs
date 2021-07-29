@@ -15,10 +15,11 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-use crate::speciation::{Individual, Age, Conf};
 use std::cmp::Ordering;
-use std::slice::{Iter, IterMut};
 use std::iter::Map;
+use std::slice::{Iter, IterMut};
+
+use crate::speciation::{Age, Conf, Individual};
 
 // #[derive(Clone)]
 struct Indiv<I: Individual<F>, F: num::Float> {
