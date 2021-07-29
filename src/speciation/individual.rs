@@ -16,7 +16,7 @@
  */
 
 
-pub trait Individual<F: num::Float> {
+pub trait Individual<F: num::Float>: Clone {
     fn fitness(&self) -> Option<F>;
     fn is_compatible(&self, other: &Self) -> bool;
 }

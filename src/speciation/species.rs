@@ -16,8 +16,6 @@
  */
 
 use std::cmp::Ordering;
-use std::iter::Map;
-use std::slice::{Iter, IterMut};
 
 use crate::speciation::{Age, Conf, Individual};
 
@@ -38,7 +36,7 @@ impl<I: Individual<F>, F: num::Float> From<I> for Indiv<I, F> {
 
 pub struct Species<I: Individual<F>, F: num::Float> {
     individuals: Vec<Indiv<I, F>>,
-    id: usize,
+    pub id: usize,
     age: Age,
     last_best_fitness: F,
 }
@@ -170,5 +168,11 @@ impl<I: Individual<F>, F: num::Float> Species<I, F> {
         }
 
         fitness
+    }
+}
+
+impl<I: Individual<F>,F: num::Float> PartialEq for Species<I,F> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
     }
 }

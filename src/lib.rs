@@ -18,8 +18,11 @@ pub mod speciation;
 
 #[cfg(test)]
 mod tests {
-    use crate::speciation::Individual;
+    use crate::speciation::{Individual, Genus};
+    use rand::prelude::*;
+    use std::ptr;
 
+    #[derive(Clone)]
     struct IndividualTest {
         id: usize,
         genome: Vec<bool>,
@@ -27,12 +30,50 @@ mod tests {
     }
 
     impl IndividualTest {
-        pub fn new(id: usize, size: usize) -> Self {
+        pub fn empty(id: usize, size: usize) -> Self {
             Self {
                 id,
                 genome: vec![false; size],
                 fitness: None,
             }
+        }
+        pub fn random(id: usize, size: usize, rng: &mut ThreadRng) -> Self {
+            Self {
+                id,
+                genome: (0..size).into_iter().map(|_| rng.gen()).collect(),
+                fitness: None,
+            }
+        }
+
+        pub fn evaluate(&mut self) {
+            self.fitness = Some(self.genome.iter().map(|i| if *i {1.0} else {0.0}).sum())
+        }
+
+        pub fn mutate(&mut self, rng: &mut ThreadRng) {
+            use rand::distributions::Uniform;
+            let pos = Uniform::from(0..self.genome.len()).sample(rng);
+            self.genome[pos] = !self.genome[pos];
+        }
+
+        pub fn crossover(&self, other: &Self, new_id: usize, rng: &mut ThreadRng) -> Self {
+            let mut new_indiv = Self::empty(new_id, 0);
+
+            if ptr::eq(self, other) {
+                new_indiv.genome = self.genome.clone();
+            } else {
+                use rand::distributions::Uniform;
+                let swap_point = Uniform::from(0..self.genome.len()).sample(rng);
+                new_indiv.genome = self.genome.iter()
+                    .take(swap_point)
+                    .chain(other.genome.iter().skip(swap_point))
+                    .cloned()
+                    .collect();
+
+                assert_eq!(self.genome.len(), new_indiv.genome.len());
+            }
+
+            new_indiv
+
         }
     }
 
@@ -43,10 +84,17 @@ mod tests {
 
         fn is_compatible(&self, other: &Self) -> bool {
             assert_eq!(self.genome.len(), other.genome.len());
-            todo!()
+            let distance: usize =
+                self.genome.iter().zip(other.genome.iter())
+                    .map(|(s, o)| if s == o {0} else {1})
+                    .sum();
+            distance > (self.genome.len() / 3)
         }
     }
 
     #[test]
-    fn evolution_test() {}
+    fn evolution_test() {
+        let genus: Genus<IndividualTest, f32> = crate::speciation::Genus::new();
+
+    }
 }

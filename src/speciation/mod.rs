@@ -17,6 +17,7 @@
 
 pub use age::Age;
 pub use conf::Conf;
+pub use genus::Genus;
 pub use individual::Individual;
 pub use species::Species;
 
