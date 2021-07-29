@@ -17,8 +17,8 @@
 
 use crate::speciation::{Individual, Age, Conf};
 use std::cmp::Ordering;
-use std::process::Output;
-use std::ops::Div;
+use std::slice::{Iter, IterMut};
+use std::iter::Map;
 
 // #[derive(Clone)]
 struct Indiv<F> {
@@ -35,20 +35,20 @@ impl<F> From<Box<dyn Individual<F>>> for Indiv<F> {
     }
 }
 
-pub struct Species<F: Default + Copy + PartialOrd + Div<f64, Output=F>> {
+pub struct Species<F: num::Float> {
     individuals: Vec<Indiv<F>>,
     id: usize,
     age: Age,
     last_best_fitness: F,
 }
 
-impl<F: Default + Copy + PartialOrd + Div<f64, Output=F>> Species<F> {
+impl<F: num::Float> Species<F> {
     pub fn new(individual: Box<dyn Individual<F>>, species_id: usize) -> Self {
         Self {
             individuals: vec![Indiv::from(individual)],
             id: species_id,
             age: Age::new(),
-            last_best_fitness: F::default(),
+            last_best_fitness: F::zero(),
         }
     }
 
@@ -95,18 +95,17 @@ impl<F: Default + Copy + PartialOrd + Div<f64, Output=F>> Species<F> {
         let individual_n = self.individuals.len();
 
         // Iterates through individuals and sets the adjusted fitness
-        self.individuals.iter_mut()
-            .for_each(|indiv| {
-                let fitness = indiv.individual.fitness().unwrap_or_default();
+        for indiv in &mut self.individuals {
+            let fitness = indiv.individual.fitness().unwrap_or(F::zero());
 
-                if fitness < F::default() {
-                    panic!("FITNESS CANNOT BE NEGATIVE");
-                }
-                let f_adj: F = self.individual_adjusted_fitness(fitness, is_best_species, conf);
+            if fitness < F::zero() {
+                panic!("FITNESS CANNOT BE NEGATIVE");
+            }
+            let f_adj: F = Self::individual_adjusted_fitness(fitness, is_best_species, &mut self.age, &mut self.last_best_fitness, conf);
 
-                // Compute the adjusted fitness for this member
-                indiv.adjusted_fitness = Some(f_adj / individual_n as f64);
-            });
+            // Compute the adjusted fitness for this member
+            indiv.adjusted_fitness = Some(f_adj / F::from(individual_n).unwrap());
+        }
     }
 
     /// Inserts an individual into this species
@@ -122,8 +121,12 @@ impl<F: Default + Copy + PartialOrd + Div<f64, Output=F>> Species<F> {
             .collect()
     }
 
-    pub fn iter() { unimplemented!() }
-    pub fn iter_mut() { unimplemented!() }
+    pub fn iter<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item=&'a Box<dyn Individual<F>>> + 'a> {
+        Box::new(self.individuals.iter().map(|i| &i.individual))
+    }
+    pub fn iter_mut<'a>(&'a mut self) -> Box<dyn ExactSizeIterator<Item=&'a mut Box<dyn Individual<F>>> + 'a> {
+        Box::new(self.individuals.iter_mut().map(|i| &mut i.individual))
+    }
 
     pub fn is_empty(&self) -> bool {
         self.individuals.is_empty()
@@ -135,34 +138,34 @@ impl<F: Default + Copy + PartialOrd + Div<f64, Output=F>> Species<F> {
         self.individuals.first().map(|i| &i.individual)
     }
 
-    fn individual_adjusted_fitness(&mut self, mut fitness: F, is_best_species: bool, conf: Conf) -> F {
+    fn individual_adjusted_fitness(mut fitness: F, is_best_species: bool, age: &mut Age, last_best_fitness: &mut F, conf: &Conf) -> F {
         // set small fitness if it is absent
-        if fitness == F::default() {
-            fitness = F::from(0.0001);
+        if fitness.is_zero() {
+            fitness = F::from(0.0001).unwrap();
         }
 
         // update the best fitness and stagnation counter
-        if fitness >= self.last_best_fitness {
-            self.last_best_fitness = fitness;
-            self.age.reset_no_improvements();
+        if fitness >= *last_best_fitness {
+            *last_best_fitness = fitness;
+            age.reset_no_improvements();
         }
 
-        let number_of_generations = self.age.generations;
+        let number_of_generations = age.generations;
 
         // boost the fitness up to some young age
         if number_of_generations < conf.young_age_threshold {
-            fitness *= F::from(conf.young_age_fitness_boost);
+            fitness = fitness * F::from(conf.young_age_fitness_boost).unwrap();
         }
 
         // penalty for old species
         if number_of_generations > conf.old_age_threshold {
-            fitness *= F::from(conf.old_age_fitness_penalty);
+            fitness = fitness * F::from(conf.old_age_fitness_penalty).unwrap();
         }
 
         // Extreme penalty if this species is stagnating for too long time
         // one exception if this is the best species found so far
-        if !is_best_species && self.age.no_improvements > conf.species_max_stagnation {
-            fitness *= F::from(0.0000001);
+        if !is_best_species && age.no_improvements > conf.species_max_stagnation {
+            fitness = fitness * F::from(0.0000001).unwrap();
         }
 
         fitness

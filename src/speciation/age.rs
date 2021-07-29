@@ -17,8 +17,11 @@
 
 #[derive(Clone)]
 pub struct Age {
+    /// Age of the species (in generations)
     pub generations: usize,
+    /// Age of the species (in evaluations)
     pub evaluations: usize,
+    /// Number of generations in which the Species saw no improvements
     pub no_improvements: usize,
 }
 
@@ -47,7 +50,6 @@ impl Age {
     pub fn reset_no_improvements(&mut self) {
         self.no_improvements = 0;
     }
-
     pub fn reset_evaluations(&mut self) {
         self.evaluations = 0;
     }

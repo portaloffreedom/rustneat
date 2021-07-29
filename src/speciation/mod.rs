@@ -20,6 +20,7 @@ mod conf;
 mod individual;
 mod genus;
 mod species;
+mod population_management;
 
 pub use age::Age;
 pub use conf::Conf;

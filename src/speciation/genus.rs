@@ -15,15 +15,24 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 use crate::speciation::Species;
-use std::ops::Div;
 
-struct SpeciesCollection<F: Default + Copy + PartialOrd + Div<f64, Output = F>> {
+struct SpeciesCollection<F: num::Float> {
     collection: Vec<Species<F>>,
-    best: usize,
+    best: Option<usize>,
     cache_need_updating: bool,
 }
 
-pub struct Genus<F: Default + Copy + PartialOrd + Div<f64, Output = F>> {
+impl<F: num::Float> SpeciesCollection<F> {
+    pub fn new<It: Iterator<Item=Species<F>>>(species: It) -> Self {
+        Self {
+            collection: species.into_iter().collect(),
+            best: None,
+            cache_need_updating: true,
+        }
+    }
+}
+
+pub struct Genus<F: num::Float> {
     next_species_id: usize,
     species_collection: SpeciesCollection<F>,
 }
