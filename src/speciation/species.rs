@@ -21,13 +21,13 @@ use std::slice::{Iter, IterMut};
 use std::iter::Map;
 
 // #[derive(Clone)]
-struct Indiv<F> {
+struct Indiv<I: Individual<F>, F: num::Float> {
+    individual: I,
     adjusted_fitness: Option<F>,
-    individual: Box<dyn Individual<F>>,
 }
 
-impl<F> From<Box<dyn Individual<F>>> for Indiv<F> {
-    fn from(individual: Box<dyn Individual<F>>) -> Self {
+impl<I: Individual<F>, F: num::Float> From<I> for Indiv<I, F> {
+    fn from(individual: I) -> Self {
         Indiv {
             individual,
             adjusted_fitness: None,
@@ -35,15 +35,15 @@ impl<F> From<Box<dyn Individual<F>>> for Indiv<F> {
     }
 }
 
-pub struct Species<F: num::Float> {
-    individuals: Vec<Indiv<F>>,
+pub struct Species<I: Individual<F>, F: num::Float> {
+    individuals: Vec<Indiv<I, F>>,
     id: usize,
     age: Age,
     last_best_fitness: F,
 }
 
-impl<F: num::Float> Species<F> {
-    pub fn new(individual: Box<dyn Individual<F>>, species_id: usize) -> Self {
+impl<I: Individual<F>, F: num::Float> Species<I, F> {
+    pub fn new(individual: I, species_id: usize) -> Self {
         Self {
             individuals: vec![Indiv::from(individual)],
             id: species_id,
@@ -52,8 +52,8 @@ impl<F: num::Float> Species<F> {
         }
     }
 
-    pub fn clone_with_new_individuals<I>(&self, new_individuals: I) -> Self
-        where I: Iterator<Item=Box<dyn Individual<F>>> {
+    pub fn clone_with_new_individuals<It>(&self, new_individuals: It) -> Self
+        where It: Iterator<Item=I> {
         Self {
             individuals: new_individuals.map(|i| Indiv::from(i)).collect(),
             id: self.id,
@@ -62,7 +62,7 @@ impl<F: num::Float> Species<F> {
         }
     }
 
-    pub fn is_compatible(&self, candidate: &dyn Individual<F>) -> bool {
+    pub fn is_compatible(&self, candidate: &I) -> bool {
         if let Some(representative) = self.representative() {
             representative.is_compatible(candidate)
         } else {
@@ -70,7 +70,7 @@ impl<F: num::Float> Species<F> {
         }
     }
 
-    pub fn get_best_individual(&self) -> Option<&Box<dyn Individual<F>>> {
+    pub fn get_best_individual(&self) -> Option<&I> {
         self.individuals.iter()
             .map(|i| &i.individual)
             .max_by(|a, b| if a.fitness() > b.fitness() { Ordering::Greater } else { Ordering::Less })
@@ -109,22 +109,22 @@ impl<F: num::Float> Species<F> {
     }
 
     /// Inserts an individual into this species
-    pub fn insert(&mut self, individual: Box<dyn Individual<F>>) {
+    pub fn insert(&mut self, individual: I) {
         self.individuals.push(Indiv::from(individual))
     }
 
     /// Replaces set of individuals with a new set of individuals
-    pub fn set_individuals<It: Iterator<Item=Box<dyn Individual<F>>>>(&mut self, iterator: It) {
+    pub fn set_individuals<It: Iterator<Item=I>>(&mut self, iterator: It) {
         self.individuals.clear();
         self.individuals = iterator.into_iter()
             .map(|i| Indiv::from(i))
             .collect()
     }
 
-    pub fn iter<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item=&'a Box<dyn Individual<F>>> + 'a> {
+    pub fn iter<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item=&'a I> + 'a> {
         Box::new(self.individuals.iter().map(|i| &i.individual))
     }
-    pub fn iter_mut<'a>(&'a mut self) -> Box<dyn ExactSizeIterator<Item=&'a mut Box<dyn Individual<F>>> + 'a> {
+    pub fn iter_mut<'a>(&'a mut self) -> Box<dyn ExactSizeIterator<Item=&'a mut I> + 'a> {
         Box::new(self.individuals.iter_mut().map(|i| &mut i.individual))
     }
 
@@ -134,7 +134,7 @@ impl<F: num::Float> Species<F> {
 
     pub fn len(&self) -> usize { self.individuals.len() }
 
-    pub fn representative<'a>(&'a self) -> Option<&'a Box<dyn Individual<F>>> {
+    pub fn representative<'a>(&'a self) -> Option<&'a I> {
         self.individuals.first().map(|i| &i.individual)
     }
 

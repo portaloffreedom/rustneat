@@ -18,8 +18,35 @@ pub mod speciation;
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    use crate::speciation::Individual;
+
+    struct IndividualTest {
+        id: usize,
+        genome: Vec<bool>,
+        fitness: Option<f32>,
     }
+
+    impl IndividualTest {
+        pub fn new(id: usize, size: usize) -> Self {
+            Self {
+                id,
+                genome: vec![false; size],
+                fitness: None,
+            }
+        }
+    }
+
+    impl Individual<f32> for IndividualTest {
+        fn fitness(&self) -> Option<f32> {
+            self.fitness
+        }
+
+        fn is_compatible(&self, other: &Self) -> bool {
+            assert_eq!(self.genome.len(), other.genome.len());
+            todo!()
+        }
+    }
+
+    #[test]
+    fn evolution_test() {}
 }

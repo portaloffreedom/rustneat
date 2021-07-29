@@ -18,5 +18,5 @@
 
 pub trait Individual<F: num::Float> {
     fn fitness(&self) -> Option<F>;
-    fn is_compatible(&self, other: &dyn Individual<F>) -> bool;
+    fn is_compatible(&self, other: &Self) -> bool;
 }

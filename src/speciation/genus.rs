@@ -14,16 +14,16 @@
  * You should have received a copy of the GNU General Public License 
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-use crate::speciation::Species;
+use crate::speciation::{Species, Individual};
 
-struct SpeciesCollection<F: num::Float> {
-    collection: Vec<Species<F>>,
+struct SpeciesCollection<I: Individual<F>, F: num::Float> {
+    collection: Vec<Species<I, F>>,
     best: Option<usize>,
     cache_need_updating: bool,
 }
 
-impl<F: num::Float> SpeciesCollection<F> {
-    pub fn new<It: Iterator<Item=Species<F>>>(species: It) -> Self {
+impl<I: Individual<F>, F: num::Float> SpeciesCollection<I, F> {
+    pub fn new<It: Iterator<Item=Species<I, F>>>(species: It) -> Self {
         Self {
             collection: species.into_iter().collect(),
             best: None,
@@ -32,7 +32,7 @@ impl<F: num::Float> SpeciesCollection<F> {
     }
 }
 
-pub struct Genus<F: num::Float> {
+pub struct Genus<I: Individual<F>, F: num::Float> {
     next_species_id: usize,
-    species_collection: SpeciesCollection<F>,
+    species_collection: SpeciesCollection<I, F>,
 }
