@@ -27,4 +27,5 @@ mod individual;
 mod genus;
 mod species;
 mod population_management;
+mod species_collection;
 

@@ -133,6 +133,31 @@ impl<I: Individual<F>, F: num::Float> Species<I, F> {
 
     pub fn len(&self) -> usize { self.individuals.len() }
 
+    pub fn increase_generations(&mut self) {
+        self.age.increase_generations()
+    }
+
+    pub fn increase_evaluations(&mut self) {
+        self.age.increase_evaluations()
+    }
+
+    pub fn increase_no_improvements_generations(&mut self) {
+        self.age.increase_no_improvements()
+    }
+
+    pub fn reset_age(&mut self) {
+        self.age.reset_generations();
+        self.age.reset_no_improvements();
+    }
+
+    pub fn individual(&self, index: usize) -> &I {
+        &self.individuals[index].individual
+    }
+
+    pub fn individual_mut(&mut self, index: usize) -> &mut I {
+        &mut self.individuals[index].individual
+    }
+
     pub fn representative<'a>(&'a self) -> Option<&'a I> {
         self.individuals.first().map(|i| &i.individual)
     }
@@ -171,7 +196,7 @@ impl<I: Individual<F>, F: num::Float> Species<I, F> {
     }
 }
 
-impl<I: Individual<F>,F: num::Float> PartialEq for Species<I,F> {
+impl<I: Individual<F>, F: num::Float> PartialEq for Species<I, F> {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }

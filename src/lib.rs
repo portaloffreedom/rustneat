@@ -18,9 +18,11 @@ pub mod speciation;
 
 #[cfg(test)]
 mod tests {
-    use crate::speciation::{Individual, Genus};
-    use rand::prelude::*;
     use std::ptr;
+
+    use rand::prelude::*;
+
+    use crate::speciation::{Genus, Individual};
 
     #[derive(Clone)]
     struct IndividualTest {
@@ -46,7 +48,7 @@ mod tests {
         }
 
         pub fn evaluate(&mut self) {
-            self.fitness = Some(self.genome.iter().map(|i| if *i {1.0} else {0.0}).sum())
+            self.fitness = Some(self.genome.iter().map(|i| if *i { 1.0 } else { 0.0 }).sum())
         }
 
         pub fn mutate(&mut self, rng: &mut ThreadRng) {
@@ -73,7 +75,6 @@ mod tests {
             }
 
             new_indiv
-
         }
     }
 
@@ -86,7 +87,7 @@ mod tests {
             assert_eq!(self.genome.len(), other.genome.len());
             let distance: usize =
                 self.genome.iter().zip(other.genome.iter())
-                    .map(|(s, o)| if s == o {0} else {1})
+                    .map(|(s, o)| if s == o { 0 } else { 1 })
                     .sum();
             distance > (self.genome.len() / 3)
         }
@@ -94,7 +95,13 @@ mod tests {
 
     #[test]
     fn evolution_test() {
-        let genus: Genus<IndividualTest, f32> = crate::speciation::Genus::new();
+        const POPULATION_SIZE: usize = 10;
+        const GENOME_SIZE: usize = 10;
+        let mut rng = rand::thread_rng();
 
+        let genus: Genus<IndividualTest, f32> = crate::speciation::Genus::new();
+        let initial_population: Vec<IndividualTest> = (0..POPULATION_SIZE).into_iter()
+            .map(|i| IndividualTest::random(i, GENOME_SIZE, &mut rng))
+            .collect();
     }
 }
