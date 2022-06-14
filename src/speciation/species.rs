@@ -16,11 +16,13 @@
  */
 
 use std::cmp::Ordering;
+use std::iter::Map;
+use std::slice::Iter;
 
 use crate::speciation::{Age, Conf, Individual};
 
 // #[derive(Clone)]
-struct Indiv<I: Individual<F>, F: num::Float> {
+pub struct Indiv<I: Individual<F>, F: num::Float> {
     individual: I,
     adjusted_fitness: Option<F>,
 }
@@ -120,8 +122,11 @@ impl<I: Individual<F>, F: num::Float> Species<I, F> {
             .collect()
     }
 
-    pub fn iter<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item=&'a I> + 'a> {
-        Box::new(self.individuals.iter().map(|i| &i.individual))
+
+    pub fn iter<'a>(&self) -> Map<Iter<'_, Indiv<I, F>>, fn(&'a Indiv<I, F>) -> &I>
+    {
+        //type SpeciesIter = Map<Iter<'_, Indiv<I, F>>, fn(&'a Indiv<I, F>) -> &I>;
+        self.individuals.iter().map(|i| &i.individual)
     }
     pub fn iter_mut<'a>(&'a mut self) -> Box<dyn ExactSizeIterator<Item=&'a mut I> + 'a> {
         Box::new(self.individuals.iter_mut().map(|i| &mut i.individual))
@@ -158,7 +163,7 @@ impl<I: Individual<F>, F: num::Float> Species<I, F> {
         &mut self.individuals[index].individual
     }
 
-    pub fn representative<'a>(&'a self) -> Option<&'a I> {
+    pub fn representative(&self) -> Option<&I> {
         self.individuals.first().map(|i| &i.individual)
     }
 
