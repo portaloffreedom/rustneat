@@ -16,6 +16,9 @@
  */
 
 use std::cmp::Ordering;
+// use std::iter::{Chain, Cloned, Copied, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten, FromIterator, Fuse, Inspect, Intersperse, IntersperseWith, Iterator, Map, MapWhile, Peekable, Product, Rev, Scan, Skip, SkipWhile, StepBy, Sum, Take, TakeWhile, TrustedRandomAccessNoCoerce, Zip};
+// use std::ops::{Residual, Try};
+use std::slice::{Iter, IterMut};
 
 use crate::speciation::{Age, Conf, Individual};
 
@@ -120,11 +123,19 @@ impl<I: Individual<F>, F: num::Float> Species<I, F> {
             .collect()
     }
 
-    pub fn iter<'a>(&'a self) -> Box<dyn ExactSizeIterator<Item=&'a I> + 'a> {
-        Box::new(self.individuals.iter().map(|i| &i.individual))
+    pub fn iter(&self) -> SpeciesIter<I,F> {
+        SpeciesIter {
+            inner_iterator: self.individuals.iter()
+        }
     }
-    pub fn iter_mut<'a>(&'a mut self) -> Box<dyn ExactSizeIterator<Item=&'a mut I> + 'a> {
-        Box::new(self.individuals.iter_mut().map(|i| &mut i.individual))
+
+    // pub fn iter_mut<'a>(&'a mut self) -> Box<dyn ExactSizeIterator<Item=&'a mut I> + 'a> {
+    //     Box::new(self.individuals.iter_mut().map(|i| &mut i.individual))
+    // }
+    pub fn iter_mut(&mut self) -> SpeciesMutIter<I, F> {
+        SpeciesMutIter {
+            inner_iterator: self.individuals.iter_mut()
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -158,7 +169,7 @@ impl<I: Individual<F>, F: num::Float> Species<I, F> {
         &mut self.individuals[index].individual
     }
 
-    pub fn representative<'a>(&'a self) -> Option<&'a I> {
+    pub fn representative(&self) -> Option<&I> {
         self.individuals.first().map(|i| &i.individual)
     }
 
@@ -199,5 +210,39 @@ impl<I: Individual<F>, F: num::Float> Species<I, F> {
 impl<I: Individual<F>, F: num::Float> PartialEq for Species<I, F> {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+pub struct SpeciesIter<'a, I: Individual<F>, F: num::Float> {
+    inner_iterator: Iter<'a, Indiv<I,F>>
+}
+
+impl<'a, I: Individual<F>, F: num::Float> Iterator for SpeciesIter<'a, I,F> {
+    type Item = &'a I;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner_iterator.next().map(|i| &i.individual)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner_iterator.size_hint()
+    }
+}
+
+impl<'a, I: Individual<F>, F: num::Float> ExactSizeIterator for SpeciesIter<'a, I, F> {}
+
+pub struct SpeciesMutIter<'a, I: Individual<F>, F: num::Float> {
+    inner_iterator: IterMut<'a, Indiv<I,F>>
+}
+
+impl<'a, I: Individual<F>, F: num::Float> Iterator for SpeciesMutIter<'a, I,F> {
+    type Item = &'a mut I;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner_iterator.next().map(|i| &mut i.individual)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner_iterator.size_hint()
     }
 }

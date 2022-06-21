@@ -15,8 +15,6 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-use crate::speciation::Individual;
-
 // pub fn generational<F: num::Float>(new_population: &Vec<dyn Individual<F>>, old_population: &Vec<dyn Individual<F>>, population_size: usize) -> Vec<dyn Individual<F>>{
 //     assert!(new_population.len() == old_population.len());
 //     return new_population;

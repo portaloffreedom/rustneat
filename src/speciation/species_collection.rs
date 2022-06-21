@@ -19,6 +19,7 @@ use std::cmp::Ordering;
 
 use crate::speciation::{Individual, Species};
 use crate::speciation;
+use std::slice::{Iter, IterMut};
 
 pub struct SpeciesCollection<I: Individual<F>, F: num::Float> {
     collection: Vec<Species<I, F>>,
@@ -43,6 +44,10 @@ impl<I: Individual<F>, F: num::Float> SpeciesCollection<I, F> {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.collection.len()
+    }
+
     pub fn push(&mut self, species: Species<I, F>) {
         self.collection.push(species);
         self.cache_need_updating = true;
@@ -57,6 +62,12 @@ impl<I: Individual<F>, F: num::Float> SpeciesCollection<I, F> {
     pub fn clear(&mut self) {
         self.collection.clear()
     }
+
+    /// Iterates through the species
+    pub fn iter<'a>(&self) -> Iter<'a, Species<I, F>> { self.collection.iter() }
+
+    /// Iterates through the (mutable) species
+    pub fn iter_mut<'a>(&mut self) -> IterMut<'a, Species<I, F>> { self.collection.iter_mut() }
 
     /// Computes the adjusted fitness for all species
     pub fn compute_adjust_fitness(&mut self, conf: &speciation::Conf)
@@ -132,7 +143,12 @@ impl<I: Individual<F>, F: num::Float> SpeciesCollection<I, F> {
                 // if best_fitness is None, this species will be filtered out
                 species.get_best_fitness().map(|f| (i, f))
             })
-            .max_by(|(i_a, a), (i_b, b)| if a > b { Ordering::Greater } else { Ordering::Less })
-            .map(|(i, f)| i);
+            .max_by(|(_, fitness_a), (_, fitness_b)| if fitness_a > fitness_b { Ordering::Greater } else { Ordering::Less })
+            .map(|(i, _)| i);
+
+        // Cannot calculate WORST cache, because there are 2 different
+        // version of the worst individual. Which one should be cached?
+
+        self.cache_need_updating = false;
     }
 }
