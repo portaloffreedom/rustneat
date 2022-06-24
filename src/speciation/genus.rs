@@ -115,11 +115,11 @@ where
     pub fn generate_new_individuals<'a, 'individual, SelectionF, ParentSelectionF, ReproduceI1F, CrossoverI2F, MutateF>(
         &'a mut self,
         conf: &Conf,
-        selection: &'static SelectionF,
-        parent_selection: &'static ParentSelectionF,
-        reproduce_individual_1: &'static ReproduceI1F,
-        crossover_individual_2: &'static CrossoverI2F,
-        mutate_individual: &'static MutateF,
+        selection: &mut SelectionF,
+        parent_selection: &mut ParentSelectionF,
+        reproduce_individual_1: &mut ReproduceI1F,
+        crossover_individual_2: &mut CrossoverI2F,
+        mutate_individual: &mut MutateF,
     ) -> GenusSeed<I, F>
         where
             I: 'individual,
@@ -154,30 +154,32 @@ where
             trait IteratorTrait: ExactSizeIterator {}
             // for (unsigned int n_offspring = 0; n_offspring < offspring_amounts[species_i]; n_offspring+ +)
             for n_offspring in 0_usize..offspring_amounts[species_i] {
-                let new_individual: I = self.generate_new_individual::<
-                    SpeciesIter<'a, I,F>,
-                    SelectionF,
-                    ParentSelectionF,
-                    ReproduceI1F,
-                    CrossoverI2F,
-                    MutateF>
-                (
-                    conf,
-                    species.iter(),
-                    selection,
-                    parent_selection,
-                    reproduce_individual_1,
-                    crossover_individual_2,
-                    mutate_individual,
-                );
+                for _ in 0..n_offspring {
+                    let new_individual: I = self.generate_new_individual::<
+                        SpeciesIter<'a, I, F>,
+                        SelectionF,
+                        ParentSelectionF,
+                        ReproduceI1F,
+                        CrossoverI2F,
+                        MutateF>
+                    (
+                        conf,
+                        species.iter(),
+                        selection,
+                        parent_selection,
+                        reproduce_individual_1,
+                        crossover_individual_2,
+                        mutate_individual,
+                    );
 
-                // if the new individual is compatible with the species, otherwise create new.
-                if species.is_compatible(&new_individual) {
-                    new_individuals.push(new_individual);
-                    need_evaluation.push(new_individuals.last_mut().unwrap());
-                } else {
-                    orphans.push(new_individual);
-                    need_evaluation.push(orphans.last_mut().unwrap());
+                    // if the new individual is compatible with the species, otherwise create new.
+                    if species.is_compatible(&new_individual) {
+                        new_individuals.push(new_individual);
+                        need_evaluation.push(new_individuals.last_mut().unwrap());
+                    } else {
+                        orphans.push(new_individual);
+                        need_evaluation.push(orphans.last_mut().unwrap());
+                    }
                 }
             }
 
@@ -209,11 +211,11 @@ where
         &self,
         conf: &Conf,
         mut population: It,
-        selection: &'static SelectionF,
-        parent_selection: &'static ParentSelectionF,
-        reproduce_individual_1: &'static ReproduceI1F,
-        crossover_individual_2: &'static CrossoverI2F,
-        mutate_individual: &'static MutateF,
+        selection: &mut SelectionF,
+        parent_selection: &mut ParentSelectionF,
+        reproduce_individual_1: &mut ReproduceI1F,
+        crossover_individual_2: &mut CrossoverI2F,
+        mutate_individual: &mut MutateF,
     ) -> I
     where
         I: 'individual,

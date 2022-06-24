@@ -42,8 +42,8 @@ impl<'individuals, I: Individual<F>, F: Float+Debug> GenusSeed<'individuals, I,F
     }
 
     pub fn evaluate<E: Fn(&mut I) -> F >(&mut self, evaluate_individual: E) {
-        for new_individual in self.need_evaluation {
-            let fitness: F = evaluate_individual(new_individual);
+        for new_individual in self.need_evaluation.iter_mut() {
+            let fitness: F = evaluate_individual(*new_individual);
             let individual_fitness = new_individual.fitness();
             assert!(individual_fitness.is_some());
             assert_eq!(fitness, individual_fitness.unwrap());

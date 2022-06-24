@@ -123,24 +123,24 @@ fn evolution_test() {
 
 
     // LAMBDA FUNCTIONS FOR GENOTYPE OPERATIONS
-    let selection = |it| { it.next() };
+    // let selection = |mut it| it.next().unwrap();
+    //
+    // let parent_selection = |mut it | { (it.next(), it.next()) };
 
-    let parent_selection = |it | { (it.next(), it.next()) };
-
-    let crossover_1 = |parent: &IndividualTest| {
+    let mut crossover_1 = |parent: &IndividualTest| {
         let mut child = parent.clone();
         child.id = id_counter;
         id_counter +=1;
         child
     };
 
-    let crossover_2 = |parent1: &IndividualTest, parent2: &IndividualTest| {
+    let mut crossover_2 = |parent1: &IndividualTest, parent2: &IndividualTest| {
         let child = parent1.crossover(parent2, id_counter, &mut rng);
         id_counter +=1;
         child
     };
 
-    let mutate = |individual: &mut IndividualTest| {
+    let mut mutate = |individual: &mut IndividualTest| {
         individual.mutate(&mut rng)
     };
 
@@ -166,11 +166,11 @@ fn evolution_test() {
         let mut generated_individuals = genus.update(&conf)
             .generate_new_individuals(
                 &conf,
-                &selection,
-                &parent_selection,
-                &crossover_1,
-                &crossover_2,
-                &mutate,
+                &mut |mut it| it.next().unwrap(),
+                &mut |mut it| (it.next().unwrap(), it.next().unwrap()),
+                &mut crossover_1,
+                &mut crossover_2,
+                &mut mutate,
             );
 
         generated_individuals.evaluate(evaluate);
