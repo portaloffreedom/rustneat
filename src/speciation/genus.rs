@@ -247,7 +247,7 @@ impl<I: 'static + Individual<F>, F: 'static + num::Float + Debug> Genus<I, F> {
     {
         assert!(number_of_individuals > 0);
 
-        let average_adjusted_fitness: F = self.calculate_average_fitness();
+        let average_adjusted_fitness: F = self.calculate_average_fitness().expect("Couldn't calculate average fitness");
 
         let mut species_offspring_amount: Vec<usize> = self.calculate_population_size(average_adjusted_fitness);
 
@@ -267,5 +267,32 @@ impl<I: 'static + Individual<F>, F: 'static + num::Float + Debug> Genus<I, F> {
         }
 
         Ok(species_offspring_amount)
+    }
+
+    /// Calculates the Average fitness of the population based on the adjusted fitnesses
+    ///
+    /// @return the average fitness
+    fn calculate_average_fitness(&self) -> Result<F,&str> {
+        // Calculate the total adjusted fitness
+        let mut total_adjusted_fitness: F = F::zero();
+        let mut number_of_individuals: usize = 0;
+        for species in self.species_collection.iter() {
+            for indiv in species.iter() {
+                if !indiv.adjusted_fitness.has_value() {
+                    return Err("Individual has no adjusted fitness");
+                };
+                let adjusted_fitness: F = indiv.adjusted_fitness.value();
+                total_adjusted_fitness += adjusted_fitness;
+                number_of_individuals += 1;
+            }
+        }
+        if total_adjusted_fitness <= 0 {
+            return Err("Total adjusted fitness is <= 0");
+        }
+
+        // Calculate the average adjusted fitness
+        let average_adjusted_fitness: F = total_adjusted_fitness / F::from(number_of_individuals);
+
+        Ok(average_adjusted_fitness)
     }
 }
