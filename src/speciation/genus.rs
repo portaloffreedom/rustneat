@@ -295,4 +295,28 @@ impl<I: 'static + Individual<F>, F: 'static + num::Float + Debug> Genus<I, F> {
 
         Ok(average_adjusted_fitness)
     }
+
+    /// Calculates the number of offsprings allocated for each individual given the `average_adjusted_fitness`.
+    /// The function is rounding real numbers to integer numbers, so the returned vector quite possibly will not sum up
+    /// to the total population size.
+    ///
+    /// @param average_adjusted_fitness The average adjusted fitness across all the species.
+    /// @return a vector of integers representing the number of allocated individuals for each species.
+    /// The index of this list corresponds to the same index in `self.species_list`.
+    fn calculate_population_size(&self, average_adjusted_fitness: F) -> Vec<usize>
+    {
+
+        let species_offspring_amount: Vec<_> = self.species_collection.iter()
+            .map(|species| {
+                // each species amount is given by the sum of the fitness
+                // of the individuals normalized by the average_adjusted_fitness
+                let offspring_amount: F = species.iter().map(|indiv| {
+                    indiv.adjusted_fitness.unwrap() / average_adjusted_fitness
+                }).sum();
+                offspring_amount.floor() as usize
+            }).collect();
+
+        return species_offspring_amount;
+
+    }
 }
