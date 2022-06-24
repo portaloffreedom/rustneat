@@ -15,23 +15,27 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+use std::borrow::BorrowMut;
+use std::cell::RefCell;
 use std::fmt::Debug;
+use std::rc::Rc;
 use crate::speciation::Individual;
 use num::Float;
+use crate::speciation::species::RcSpecies;
 use crate::speciation::species_collection::SpeciesCollection;
 
 pub struct GenusSeed<'individuals, I: Individual<F>, F: Float> {
-    orphans: Vec<I>,
-    new_species_collection: SpeciesCollection<I,F>,
-    need_evaluation: Vec<&'individuals mut I>,
+    orphans: Vec<Rc<RefCell<I>>>,
+    new_species_collection: Vec<RcSpecies<I,F>>,
+    need_evaluation: Vec<Rc<RefCell<I>>>,
     old_species_individuals: Vec<Vec<&'individuals I>>
 }
 
 impl<'individuals, I: Individual<F>, F: Float+Debug> GenusSeed<'individuals, I,F> {
     pub fn new(
-        orphans: Vec<I>,
-        new_species_collection: SpeciesCollection<I,F>,
-        need_evaluation: Vec<&'individuals mut I>,
+        orphans: Vec<Rc<RefCell<I>>>,
+        new_species_collection: Vec<RcSpecies<I,F>>,
+        need_evaluation: Vec<Rc<RefCell<I>>>,
         old_species_individuals: Vec<Vec<&'individuals I>>) -> Self {
         Self {
             orphans,
@@ -42,9 +46,9 @@ impl<'individuals, I: Individual<F>, F: Float+Debug> GenusSeed<'individuals, I,F
     }
 
     pub fn evaluate<E: Fn(&mut I) -> F >(&mut self, evaluate_individual: E) {
-        for new_individual in self.need_evaluation.iter_mut() {
-            let fitness: F = evaluate_individual(*new_individual);
-            let individual_fitness = new_individual.fitness();
+        for mut new_individual in self.need_evaluation.iter_mut() {
+            let fitness: F = evaluate_individual(new_individual.as_ref().borrow_mut().borrow_mut());
+            let individual_fitness = new_individual.borrow().fitness();
             assert!(individual_fitness.is_some());
             assert_eq!(fitness, individual_fitness.unwrap());
         }

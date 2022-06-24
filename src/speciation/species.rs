@@ -15,7 +15,10 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::fmt::Debug;
+use std::rc::Rc;
 // use std::iter::{Chain, Cloned, Copied, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten, FromIterator, Fuse, Inspect, Intersperse, IntersperseWith, Iterator, Map, MapWhile, Peekable, Product, Rev, Scan, Skip, SkipWhile, StepBy, Sum, Take, TakeWhile, TrustedRandomAccessNoCoerce, Zip};
 // use std::ops::{Residual, Try};
 use std::slice::{Iter, IterMut};
@@ -54,10 +57,10 @@ impl<I: Individual<F>, F: num::Float + std::iter::Sum> Species<I, F> {
         }
     }
 
-    pub fn clone_with_new_individuals<It>(&self, new_individuals: It) -> Self
-        where It: Iterator<Item=I> {
-        Self {
-            individuals: new_individuals.map(|i| Indiv::from(i)).collect(),
+    pub fn clone_with_new_individuals<It>(&self, new_individuals: It) -> RcSpecies<I,F>
+        where It: Iterator<Item=Rc<RefCell<I>>> {
+        RcSpecies {
+            individuals: new_individuals.collect(),
             id: self.id,
             age: self.age.clone(),
             last_best_fitness: self.last_best_fitness.clone(),
@@ -250,5 +253,26 @@ impl<'a, I: Individual<F>, F: num::Float> Iterator for SpeciesMutIter<'a, I,F> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner_iterator.size_hint()
+    }
+}
+
+pub struct RcSpecies<I: Individual<F>, F: num::Float> {
+    individuals: Vec<Rc<RefCell<I>>>,
+    pub id: usize,
+    age: Age,
+    last_best_fitness: F,
+}
+
+impl<I: Individual<F> + Debug, F: num::Float> RcSpecies<I,F> {
+    pub fn promote(self) -> Species<I,F> {
+        Species {
+            individuals: self.individuals.into_iter().map(|indiv| Indiv {
+                individual: Rc::try_unwrap(indiv).unwrap().into_inner(),
+                adjusted_fitness: None,
+            }).collect(),
+            id: self.id,
+            age: self.age,
+            last_best_fitness: self.last_best_fitness,
+        }
     }
 }

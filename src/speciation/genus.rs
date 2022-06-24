@@ -14,12 +14,14 @@
  * You should have received a copy of the GNU General Public License 
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 use crate::speciation::{Conf, Individual, Species};
 use crate::speciation::genus_seed::GenusSeed;
-use crate::speciation::species::SpeciesIter;
+use crate::speciation::species::{RcSpecies, SpeciesIter};
 
 use super::species_collection::SpeciesCollection;
 
@@ -134,11 +136,11 @@ where
             .expect("count offspring to be successful");
 
         // Clone Species
-        let mut new_species_collection: SpeciesCollection<I, F> = SpeciesCollection::new();
-        let mut orphans: Vec<I> = Vec::new();
+        let mut new_species_collection: Vec<RcSpecies<I,F>> = Vec::new();
+        let mut orphans: Vec<Rc<RefCell<I>>> = Vec::new();
 
         // Pointers to values in new_species_collection and orphans
-        let mut need_evaluation: Vec<&mut I> = Vec::new();
+        let mut need_evaluation: Vec<Rc<RefCell<I>>> = Vec::new();
 
         // Pointers to current const species_collection
         // std::vector < std::vector <const I* > > old_species_individuals;
@@ -150,35 +152,35 @@ where
             let old_species_individuals: Vec<&I> = species.iter().collect();
             old_species_individuals_vec.push(old_species_individuals);
 
-            let mut new_individuals: Vec<I> = Vec::new();
+            let mut new_individuals: Vec<Rc<RefCell<I>>> = Vec::new();
             trait IteratorTrait: ExactSizeIterator {}
             // for (unsigned int n_offspring = 0; n_offspring < offspring_amounts[species_i]; n_offspring+ +)
             for n_offspring in 0_usize..offspring_amounts[species_i] {
                 for _ in 0..n_offspring {
-                    let new_individual: I = self.generate_new_individual::<
-                        SpeciesIter<'a, I, F>,
-                        SelectionF,
-                        ParentSelectionF,
-                        ReproduceI1F,
-                        CrossoverI2F,
-                        MutateF>
-                    (
-                        conf,
-                        species.iter(),
-                        selection,
-                        parent_selection,
-                        reproduce_individual_1,
-                        crossover_individual_2,
-                        mutate_individual,
-                    );
+                    let new_individual: Rc<RefCell<I>> = Rc::new(RefCell::new(
+                        self.generate_new_individual::<
+                            SpeciesIter<'a, I, F>,
+                            SelectionF,
+                            ParentSelectionF,
+                            ReproduceI1F,
+                            CrossoverI2F,
+                            MutateF>
+                        (
+                            conf,
+                            species.iter(),
+                            selection,
+                            parent_selection,
+                            reproduce_individual_1,
+                            crossover_individual_2,
+                            mutate_individual,
+                        )));
 
                     // if the new individual is compatible with the species, otherwise create new.
-                    if species.is_compatible(&new_individual) {
+                    need_evaluation.push(new_individual.clone());
+                    if species.is_compatible(&new_individual.borrow()) {
                         new_individuals.push(new_individual);
-                        need_evaluation.push(new_individuals.last_mut().unwrap());
                     } else {
                         orphans.push(new_individual);
-                        need_evaluation.push(orphans.last_mut().unwrap());
                     }
                 }
             }
