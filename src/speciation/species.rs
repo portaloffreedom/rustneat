@@ -44,7 +44,7 @@ pub struct Species<I: Individual<F>, F: num::Float> {
     last_best_fitness: F,
 }
 
-impl<I: Individual<F>, F: num::Float> Species<I, F> {
+impl<I: Individual<F>, F: num::Float + std::iter::Sum> Species<I, F> {
     pub fn new(individual: I, species_id: usize) -> Self {
         Self {
             individuals: vec![Indiv::from(individual)],
@@ -108,6 +108,12 @@ impl<I: Individual<F>, F: num::Float> Species<I, F> {
             // Compute the adjusted fitness for this member
             indiv.adjusted_fitness = Some(f_adj / F::from(individual_n).unwrap());
         }
+    }
+
+    pub fn accumulated_adjusted_fitness(&self) -> F {
+        self.individuals.iter()
+            .map(|indiv| indiv.adjusted_fitness.expect("An individual has no adjusted fitness"))
+            .sum()
     }
 
     /// Inserts an individual into this species

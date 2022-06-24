@@ -16,6 +16,7 @@
  */
 
 use std::cmp::Ordering;
+use std::collections::HashSet;
 
 use crate::speciation::{Individual, Species};
 use crate::speciation;
@@ -27,7 +28,7 @@ pub struct SpeciesCollection<I: Individual<F>, F: num::Float> {
     cache_need_updating: bool,
 }
 
-impl<I: Individual<F>, F: num::Float> SpeciesCollection<I, F> {
+impl<I: Individual<F>, F: num::Float + std::iter::Sum> SpeciesCollection<I, F> {
     pub fn new() -> Self {
         Self {
             collection: Vec::new(),
@@ -64,10 +65,10 @@ impl<I: Individual<F>, F: num::Float> SpeciesCollection<I, F> {
     }
 
     /// Iterates through the species
-    pub fn iter<'a>(&self) -> Iter<'a, Species<I, F>> { self.collection.iter() }
+    pub fn iter(&self) -> Iter<Species<I, F>> { self.collection.iter() }
 
     /// Iterates through the (mutable) species
-    pub fn iter_mut<'a>(&mut self) -> IterMut<'a, Species<I, F>> { self.collection.iter_mut() }
+    pub fn iter_mut(&mut self) -> IterMut<Species<I, F>> { self.collection.iter_mut() }
 
     /// Computes the adjusted fitness for all species
     pub fn compute_adjust_fitness(&mut self, conf: &speciation::Conf)
@@ -109,18 +110,44 @@ impl<I: Individual<F>, F: num::Float> SpeciesCollection<I, F> {
         self.best
     }
 
-    /**
-     * Finds the worst species (based on the best fitness of that species)
-     * Crashes if there are no species with at least `minimal_size` individuals
-     *
-     * This function is not const because it returns a modifiable iterator.
-     *
-     * @param minimal_size Species with less individuals than this will not be considered
-     * @param exclude_id_list Species in this list will be ignored
-     * @return the iterator pointing to the worst species
-     */
-    pub fn get_worst(&self) -> Option<usize> {
-        todo!()
+    /// Finds the worst species (based on the best fitness of that species)
+    /// Crashes if there are no species with at least `minimal_size` individuals
+    ///
+    /// This function is not const because it returns a modifiable iterator.
+    ///
+    /// @param minimal_size Species with less individuals than this will not be considered
+    /// @param exclude_id_list Species in this list will be ignored
+    /// @return the iterator pointing to the worst species
+    pub fn get_worst(&self, minimal_size: usize, exclude_id_list: Option<&HashSet<usize>>) -> Option<(usize, &Species<I,F>)> {
+        assert!(!self.collection.is_empty());
+
+        self.collection.iter()
+            .enumerate()
+            .filter(|(_, species)| {
+                species.len() >= minimal_size
+            })
+            .filter(|(_, species)| {
+                if let Some(exclude_id_list) = exclude_id_list {
+                    !exclude_id_list.contains(&species.id)
+                } else {
+                    true
+                }
+            })
+            .filter_map(|(i, species)| {
+                // if best_fitness is None, this species will be filtered out
+                species.get_best_fitness().map(|f| (i, species, f))
+            })
+            .min_by(|(_,_, fitness_a), (_,_, fitness_b)| {
+                if fitness_a > fitness_b {
+                    Ordering::Greater
+                } else {
+                    Ordering::Less
+                }
+            })
+            .map(|(i, species, fitness)| {
+                (i, species)
+            })
+
     }
 
     /// Calculates the number of individuals inside all species

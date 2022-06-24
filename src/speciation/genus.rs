@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License 
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+use std::collections::HashSet;
 use std::fmt::Debug;
 
 use crate::speciation::{Conf, Individual, Species};
@@ -27,7 +28,12 @@ pub struct Genus<I: Individual<F>, F: num::Float> {
     species_collection: SpeciesCollection<I, F>,
 }
 
-impl<I: 'static + Individual<F>, F: 'static + num::Float + Debug> Genus<I, F> {
+impl<I, F> Genus<I, F>
+where
+    I: 'static + Individual<F>,
+    F: 'static + num::Float + Debug + std::iter::Sum,
+    usize: From<F>,
+{
     /// Creates a new Genus object
     pub fn new() -> Self {
         Self {
@@ -108,7 +114,7 @@ impl<I: 'static + Individual<F>, F: 'static + num::Float + Debug> Genus<I, F> {
     /// @param evaluate_individual function to evaluate new individuals
     /// @return the genus of the next generation
     pub fn generate_new_individuals<'a, 'individual, SelectionF, ParentSelectionF, ReproduceI1F, CrossoverI2F, MutateF>(
-        &self,
+        &'a mut self,
         conf: &Conf,
         selection: &'static SelectionF,
         parent_selection: &'static ParentSelectionF,
@@ -125,7 +131,8 @@ impl<I: 'static + Individual<F>, F: 'static + num::Float + Debug> Genus<I, F> {
             MutateF: FnMut(&mut I),
     {
         // Calculate offspring amount
-        let offspring_amounts: Vec<usize> = self.count_offsprings(conf.total_population_size).expect("count offspring to be successful");
+        let offspring_amounts: Vec<usize> = self.count_offsprings(conf.total_population_size)
+            .expect("count offspring to be successful");
 
         // Clone Species
         let mut new_species_collection: SpeciesCollection<I, F> = SpeciesCollection::new();
@@ -243,7 +250,7 @@ impl<I: 'static + Individual<F>, F: 'static + num::Float + Debug> Genus<I, F> {
     /// @param number_of_individuals Total number of individuals to generate
     /// @return a vector of integers representing the number of allocated individuals for each species.
     /// The index of this list corresponds to the same index in `this->_species_list`.
-    fn count_offsprings(&self, number_of_individuals: usize) -> Result<Vec<usize>, String>
+    fn count_offsprings(&mut self, number_of_individuals: usize) -> Result<Vec<usize>, String>
     {
         assert!(number_of_individuals > 0);
 
@@ -252,7 +259,7 @@ impl<I: 'static + Individual<F>, F: 'static + num::Float + Debug> Genus<I, F> {
         let mut species_offspring_amount: Vec<usize> = self.calculate_population_size(average_adjusted_fitness);
 
         let mut offspring_amount_sum: usize = species_offspring_amount.iter().sum();
-        let missing_offsprings: usize = number_of_individuals - offspring_amount_sum;
+        let missing_offsprings = number_of_individuals as i32 -  offspring_amount_sum as i32;
 
         if missing_offsprings != 0 {
             self.correct_population_size(&mut species_offspring_amount, missing_offsprings);
@@ -277,21 +284,15 @@ impl<I: 'static + Individual<F>, F: 'static + num::Float + Debug> Genus<I, F> {
         let mut total_adjusted_fitness: F = F::zero();
         let mut number_of_individuals: usize = 0;
         for species in self.species_collection.iter() {
-            for indiv in species.iter() {
-                if !indiv.adjusted_fitness.has_value() {
-                    return Err("Individual has no adjusted fitness");
-                };
-                let adjusted_fitness: F = indiv.adjusted_fitness.value();
-                total_adjusted_fitness += adjusted_fitness;
-                number_of_individuals += 1;
-            }
+            total_adjusted_fitness = total_adjusted_fitness + species.accumulated_adjusted_fitness();
+            number_of_individuals += species.len();
         }
-        if total_adjusted_fitness <= 0 {
+        if total_adjusted_fitness <= F::zero() {
             return Err("Total adjusted fitness is <= 0");
         }
 
         // Calculate the average adjusted fitness
-        let average_adjusted_fitness: F = total_adjusted_fitness / F::from(number_of_individuals);
+        let average_adjusted_fitness: F = total_adjusted_fitness / F::from(number_of_individuals).unwrap();
 
         Ok(average_adjusted_fitness)
     }
@@ -310,13 +311,62 @@ impl<I: 'static + Individual<F>, F: 'static + num::Float + Debug> Genus<I, F> {
             .map(|species| {
                 // each species amount is given by the sum of the fitness
                 // of the individuals normalized by the average_adjusted_fitness
-                let offspring_amount: F = species.iter().map(|indiv| {
-                    indiv.adjusted_fitness.unwrap() / average_adjusted_fitness
-                }).sum();
-                offspring_amount.floor() as usize
+                let offspring_amount: F = species.accumulated_adjusted_fitness() / average_adjusted_fitness;
+                offspring_amount.floor().into()
             }).collect();
 
         return species_offspring_amount;
 
+    }
+
+    /// `species_offspring_amount` could be incorrect because of approximation errors when we round floats to integers.
+    ///
+    /// This method modifies the `species_offspring_amount` so that the sum of the vector is equal to the total population size.
+    /// It adds (or removes if negative) the `missing_offspring` number of individuals in the vector.
+    /// When adding, it chooses the best species.
+    /// When removing, it chooses the worst species, multiple species if one species is not big enough.
+    ///
+    /// @param species_offspring_amount vector of offspring_amounts that needs correction
+    /// @param missing_offspring amount of correction to be done. Positive means we need more offsprings, negative means
+    /// we have to much.
+    fn correct_population_size(&mut self, species_offspring_amount: &mut Vec<usize>, missing_offspring: i32)
+    {
+        // positive means lacking individuals
+        if missing_offspring > 0
+        {
+            let i: usize = self.species_collection.get_best().expect("a best species to be found");
+            species_offspring_amount[i] += missing_offspring as usize;
+        }
+        // negative have excess individuals
+        else if missing_offspring < 0
+        {
+            // remove missing number of individuals
+            let mut excess_offspring = (-missing_offspring) as usize;
+            let mut excluded_id_list= HashSet::<usize>::new();
+
+            while excess_offspring > 0 {
+                let (worst_species_i, worst_species) = self.species_collection
+                    .get_worst(1, Some(&excluded_id_list)).expect("Couldn't find the worst species");
+
+                let mut current_amount = species_offspring_amount[worst_species_i];
+
+                if current_amount > excess_offspring {
+                    current_amount -= excess_offspring;
+                    excess_offspring = 0;
+                } else {
+                    excess_offspring -= current_amount;
+                    current_amount = 0;
+                }
+
+                species_offspring_amount[worst_species_i] = current_amount;
+                excluded_id_list.insert(worst_species.id);
+            }
+
+            assert_eq!(excess_offspring, 0);
+        }
+        else
+        {
+        eprintln!("missing_offspring == 0, why did you call correct_population_size()?");
+        }
     }
 }
