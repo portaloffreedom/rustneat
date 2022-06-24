@@ -32,7 +32,6 @@ impl<I, F> Genus<I, F>
 where
     I: 'static + Individual<F>,
     F: 'static + num::Float + Debug + std::iter::Sum,
-    usize: From<F>,
 {
     /// Creates a new Genus object
     pub fn new() -> Self {
@@ -312,7 +311,7 @@ where
                 // each species amount is given by the sum of the fitness
                 // of the individuals normalized by the average_adjusted_fitness
                 let offspring_amount: F = species.accumulated_adjusted_fitness() / average_adjusted_fitness;
-                offspring_amount.floor().into()
+                offspring_amount.floor().to_usize().unwrap()
             }).collect();
 
         return species_offspring_amount;

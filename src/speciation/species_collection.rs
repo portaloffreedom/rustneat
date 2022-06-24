@@ -144,7 +144,7 @@ impl<I: Individual<F>, F: num::Float + std::iter::Sum> SpeciesCollection<I, F> {
                     Ordering::Less
                 }
             })
-            .map(|(i, species, fitness)| {
+            .map(|(i, species, _fitness)| {
                 (i, species)
             })
 
