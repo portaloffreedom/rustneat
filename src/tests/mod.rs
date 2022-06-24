@@ -166,11 +166,11 @@ fn evolution_test() {
         let mut generated_individuals = genus.update(&conf)
             .generate_new_individuals(
                 &conf,
-                selection,
-                parent_selection,
-                crossover_1,
-                crossover_2,
-                mutate,
+                &selection,
+                &parent_selection,
+                &crossover_1,
+                &crossover_2,
+                &mutate,
             );
 
         generated_individuals.evaluate(evaluate);

@@ -27,7 +27,7 @@ pub struct Genus<I: Individual<F>, F: num::Float> {
     species_collection: SpeciesCollection<I, F>,
 }
 
-impl<I: Individual<F>, F: num::Float + Debug> Genus<I, F> {
+impl<I: 'static + Individual<F>, F: 'static + num::Float + Debug> Genus<I, F> {
     /// Creates a new Genus object
     pub fn new() -> Self {
         Self {
@@ -107,19 +107,19 @@ impl<I: Individual<F>, F: num::Float + Debug> Genus<I, F> {
     /// size of the new population is passed in as a parameter. The size can vary a lot from one generation to the next.
     /// @param evaluate_individual function to evaluate new individuals
     /// @return the genus of the next generation
-    pub fn generate_new_individuals<'individual, SelectionF, ParentSelectionF, ReproduceI1F, CrossoverI2F, MutateF>(
+    pub fn generate_new_individuals<'a, 'individual, SelectionF, ParentSelectionF, ReproduceI1F, CrossoverI2F, MutateF>(
         &self,
         conf: &Conf,
-        selection: &SelectionF,
-        parent_selection: &ParentSelectionF,
-        reproduce_individual_1: &ReproduceI1F,
-        crossover_individual_2: &CrossoverI2F,
-        mutate_individual: &MutateF,
+        selection: &'static SelectionF,
+        parent_selection: &'static ParentSelectionF,
+        reproduce_individual_1: &'static ReproduceI1F,
+        crossover_individual_2: &'static CrossoverI2F,
+        mutate_individual: &'static MutateF,
     ) -> GenusSeed<I, F>
         where
             I: 'individual,
-            SelectionF: FnMut(Box<dyn ExactSizeIterator<Item=&'individual I>>) -> &'individual I,
-            ParentSelectionF: FnMut(Box<dyn ExactSizeIterator<Item=&'individual I>>) -> (&'individual I,&'individual I),
+            SelectionF: FnMut(Box<SpeciesIter<I, F>>) -> &'individual I,
+            ParentSelectionF: FnMut(Box<SpeciesIter<I, F>>) -> (&'individual I,&'individual I),
             ReproduceI1F: FnMut(&I) -> I,
             CrossoverI2F: FnMut(&I, &I) -> I,
             MutateF: FnMut(&mut I),
@@ -148,8 +148,14 @@ impl<I: Individual<F>, F: num::Float + Debug> Genus<I, F> {
             trait IteratorTrait: ExactSizeIterator {}
             // for (unsigned int n_offspring = 0; n_offspring < offspring_amounts[species_i]; n_offspring+ +)
             for n_offspring in 0_usize..offspring_amounts[species_i] {
-                let new_individual: I = self.generate_new_individual::<SpeciesIter<I,F>,SelectionF,ParentSelectionF,ReproduceI1F,CrossoverI2F,MutateF>(
-                    // let new_individual: I = self.generate_new_individual(
+                let new_individual: I = self.generate_new_individual::<
+                    SpeciesIter<'a, I,F>,
+                    SelectionF,
+                    ParentSelectionF,
+                    ReproduceI1F,
+                    CrossoverI2F,
+                    MutateF>
+                (
                     conf,
                     species.iter(),
                     selection,
@@ -193,21 +199,21 @@ impl<I: Individual<F>, F: num::Float + Debug> Genus<I, F> {
     /// @param reproduce_2 function to crossover and create new individuals from 2 parents
     /// @param mutate function that mutates an individual
     /// @return the genus of the next generation
-    fn generate_new_individual<'individual, It, SelectionF, ParentSelectionF, ReproduceI1F, CrossoverI2F, MutateF>(
+    fn generate_new_individual<'a, 'individual, It, SelectionF, ParentSelectionF, ReproduceI1F, CrossoverI2F, MutateF>(
         &self,
         conf: &Conf,
         mut population: It,
-        selection: &SelectionF,
-        parent_selection: &ParentSelectionF,
-        reproduce_individual_1: &ReproduceI1F,
-        crossover_individual_2: &CrossoverI2F,
-        mutate_individual: &MutateF,
+        selection: &'static SelectionF,
+        parent_selection: &'static ParentSelectionF,
+        reproduce_individual_1: &'static ReproduceI1F,
+        crossover_individual_2: &'static CrossoverI2F,
+        mutate_individual: &'static MutateF,
     ) -> I
     where
         I: 'individual,
-        It: ExactSizeIterator<Item=&'individual I> + Sized,
-        SelectionF: FnMut(Box<dyn ExactSizeIterator<Item=&'individual I>>) -> &'individual I,
-        ParentSelectionF: FnMut(Box<dyn ExactSizeIterator<Item=&'individual I>>) -> (&'individual I,&'individual I),
+        It: ExactSizeIterator<Item=&'a I> + Sized,
+        SelectionF: FnMut(Box<It>) -> &'individual I,
+        ParentSelectionF: FnMut(Box<It>) -> (&'individual I,&'individual I),
         ReproduceI1F: FnMut(&I) -> I,
         CrossoverI2F: FnMut(&I, &I) -> I,
         MutateF: FnMut(&mut I),
@@ -223,7 +229,7 @@ impl<I: Individual<F>, F: num::Float + Debug> Genus<I, F> {
                 let parent2 = parents.1;
                 crossover_individual_2(parent1, parent2)
             } else {
-                let parent = selection(population);
+                let parent = selection(Box::new(population));
                 reproduce_individual_1(parent)
             };
 
