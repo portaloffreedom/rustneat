@@ -18,10 +18,12 @@
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::fmt::Debug;
+use std::iter::Map;
 use std::rc::Rc;
 // use std::iter::{Chain, Cloned, Copied, Cycle, Enumerate, Filter, FilterMap, FlatMap, Flatten, FromIterator, Fuse, Inspect, Intersperse, IntersperseWith, Iterator, Map, MapWhile, Peekable, Product, Rev, Scan, Skip, SkipWhile, StepBy, Sum, Take, TakeWhile, TrustedRandomAccessNoCoerce, Zip};
 // use std::ops::{Residual, Try};
 use std::slice::{Iter, IterMut};
+use std::vec::Drain;
 
 use crate::speciation::{Age, Conf, Individual};
 
@@ -182,6 +184,11 @@ impl<I: Individual<F>, F: num::Float + std::iter::Sum> Species<I, F> {
         self.individuals.first().map(|i| &i.individual)
     }
 
+    pub fn drain_individuals(&mut self) -> Map<Drain<'_, Indiv<I, F>>, fn(Indiv<I, F>) -> I> {
+        self.individuals.drain(..)
+            .map(|i| {i.individual})
+    }
+
     fn individual_adjusted_fitness(mut fitness: F, is_best_species: bool, age: &mut Age, last_best_fitness: &mut F, conf: &Conf) -> F {
         // set small fitness if it is absent
         if fitness.is_zero() {
@@ -257,7 +264,7 @@ impl<'a, I: Individual<F>, F: num::Float> Iterator for SpeciesMutIter<'a, I,F> {
 }
 
 pub struct RcSpecies<I: Individual<F>, F: num::Float> {
-    individuals: Vec<Rc<RefCell<I>>>,
+    pub individuals: Vec<Rc<RefCell<I>>>,
     pub id: usize,
     age: Age,
     last_best_fitness: F,

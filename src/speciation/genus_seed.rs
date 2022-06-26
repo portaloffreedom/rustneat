@@ -24,19 +24,19 @@ use num::Float;
 use crate::speciation::species::RcSpecies;
 use crate::speciation::species_collection::SpeciesCollection;
 
-pub struct GenusSeed<'individuals, I: Individual<F>, F: Float> {
-    orphans: Vec<Rc<RefCell<I>>>,
-    new_species_collection: Vec<RcSpecies<I,F>>,
-    need_evaluation: Vec<Rc<RefCell<I>>>,
-    old_species_individuals: Vec<Vec<&'individuals I>>
+pub struct GenusSeed<I: Individual<F>, F: Float> {
+    pub orphans: Vec<Rc<RefCell<I>>>,
+    pub new_species_collection: Vec<RcSpecies<I,F>>,
+    pub need_evaluation: Vec<Rc<RefCell<I>>>,
+    pub old_species_individuals: Vec<Vec<I>>
 }
 
-impl<'individuals, I: Individual<F>, F: Float+Debug> GenusSeed<'individuals, I,F> {
+impl<I: Individual<F>, F: Float+Debug> GenusSeed<I,F> {
     pub fn new(
         orphans: Vec<Rc<RefCell<I>>>,
         new_species_collection: Vec<RcSpecies<I,F>>,
         need_evaluation: Vec<Rc<RefCell<I>>>,
-        old_species_individuals: Vec<Vec<&'individuals I>>) -> Self {
+        old_species_individuals: Vec<Vec<I>>) -> Self {
         Self {
             orphans,
             new_species_collection,
@@ -45,7 +45,7 @@ impl<'individuals, I: Individual<F>, F: Float+Debug> GenusSeed<'individuals, I,F
         }
     }
 
-    pub fn evaluate<E: Fn(&mut I) -> F >(&mut self, evaluate_individual: E) {
+    pub fn evaluate<E: FnMut(&mut I) -> F >(&mut self, mut evaluate_individual: E) {
         for mut new_individual in self.need_evaluation.iter_mut() {
             let fitness: F = evaluate_individual(new_individual.as_ref().borrow_mut().borrow_mut());
             let individual_fitness = new_individual.borrow().fitness();

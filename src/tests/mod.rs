@@ -15,13 +15,14 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+use std::io::Read;
 use std::ptr;
 
 use rand::prelude::*;
 
 use crate::speciation::{Conf, Genus, Individual};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct IndividualTest {
     id: usize,
     genome: Vec<bool>,
@@ -144,7 +145,13 @@ fn evolution_test() {
         individual.mutate(&mut rng)
     };
 
-    let population_manager = || {};
+    let population_manager = |new_individuals: Vec<IndividualTest>, old_individuals: Vec<IndividualTest>, target_population: usize| {
+        assert!(new_individuals.len() + old_individuals.len() > target_population);
+        new_individuals.into_iter()
+            .chain(old_individuals.into_iter())
+            .take(target_population)
+            .collect()
+    };
 
     let evaluate = |new_individual: &mut IndividualTest| {
         let fitness = new_individual.evaluate();

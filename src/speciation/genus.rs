@@ -22,6 +22,7 @@ use std::rc::Rc;
 use crate::speciation::{Conf, Individual, Species};
 use crate::speciation::genus_seed::GenusSeed;
 use crate::speciation::species::{RcSpecies, SpeciesIter};
+use crate::util::iterators::has_unique_elements;
 
 use super::species_collection::SpeciesCollection;
 
@@ -32,7 +33,7 @@ pub struct Genus<I: Individual<F>, F: num::Float> {
 
 impl<I, F> Genus<I, F>
 where
-    I: 'static + Individual<F>,
+    I: 'static + Individual<F> + Debug,
     F: 'static + num::Float + Debug + std::iter::Sum,
 {
     /// Creates a new Genus object
@@ -40,6 +41,13 @@ where
         Self {
             next_species_id: 1,
             species_collection: SpeciesCollection::new(),
+        }
+    }
+
+    fn build_next_generation(species_collection: SpeciesCollection<I, F>, next_species_id: usize) -> Self {
+        Self {
+            next_species_id,
+            species_collection
         }
     }
 
@@ -75,7 +83,7 @@ where
         }
     }
 
-    pub fn ensure_evaluated_population<E: Fn(&mut I) -> F>(&mut self, evaluate_individual: E)
+    pub fn ensure_evaluated_population<E: FnMut(&mut I) -> F>(&mut self, mut evaluate_individual: E)
         where F: Debug
     {
         for species in self.species_collection.iter_mut() {
@@ -142,23 +150,16 @@ where
         // Pointers to values in new_species_collection and orphans
         let mut need_evaluation: Vec<Rc<RefCell<I>>> = Vec::new();
 
-        // Pointers to current const species_collection
-        // std::vector < std::vector <const I* > > old_species_individuals;
-        let mut old_species_individuals_vec: Vec<Vec<&I>> = Vec::new();
-
         //////////////////////////////////////////////
         // GENERATE NEW INDIVIDUALS
         for (species_i, species) in self.species_collection.iter().enumerate() {
-            let old_species_individuals: Vec<&I> = species.iter().collect();
-            old_species_individuals_vec.push(old_species_individuals);
 
             let mut new_individuals: Vec<Rc<RefCell<I>>> = Vec::new();
-            trait IteratorTrait: ExactSizeIterator {}
-            // for (unsigned int n_offspring = 0; n_offspring < offspring_amounts[species_i]; n_offspring+ +)
+
             for n_offspring in 0_usize..offspring_amounts[species_i] {
                 for _ in 0..n_offspring {
                     let new_individual: Rc<RefCell<I>> = Rc::new(RefCell::new(
-                        self.generate_new_individual::<
+                        Self::generate_new_individual::<
                             SpeciesIter<'a, I, F>,
                             SelectionF,
                             ParentSelectionF,
@@ -188,7 +189,13 @@ where
             new_species_collection.push(
                 species.clone_with_new_individuals(new_individuals.into_iter())
             );
-        }
+        };
+
+        // Pointers to current const species_collection
+        let old_species_individuals_vec = {
+            self.species_collection.iter_mut()
+                .map(|species| species.drain_individuals().collect()).collect()
+        };
 
         GenusSeed::new(
             orphans,
@@ -210,9 +217,8 @@ where
     /// @param mutate function that mutates an individual
     /// @return the genus of the next generation
     fn generate_new_individual<'a, 'individual, It, SelectionF, ParentSelectionF, ReproduceI1F, CrossoverI2F, MutateF>(
-        &self,
         conf: &Conf,
-        mut population: It,
+        population: It,
         selection: &mut SelectionF,
         parent_selection: &mut ParentSelectionF,
         reproduce_individual_1: &mut ReproduceI1F,
@@ -371,5 +377,100 @@ where
         {
         eprintln!("missing_offspring == 0, why did you call correct_population_size()?");
         }
+    }
+
+    pub fn next_generation<PopManager>(&mut self,
+                           conf: &Conf,
+                           generated_individuals: GenusSeed<I, F>,
+                           mut population_management: PopManager) -> Self
+    where
+        PopManager: FnMut(Vec<I>, Vec<I>, usize) -> Vec<I>
+    {
+        let mut local_next_species_id: usize = self.next_species_id;
+
+        let mut new_species_collection = SpeciesCollection::new_from_iter(
+            generated_individuals.new_species_collection
+                .into_iter()
+                .map(|rc_species| rc_species.promote())
+        );
+
+        //////////////////////////////////////////////
+        // MANAGE ORPHANS, POSSIBLY CREATE NEW SPECIES
+        // recheck if other species can adopt the orphans individuals.
+
+        for orphan in generated_individuals.orphans {
+            let orphan = Rc::try_unwrap(orphan).unwrap().into_inner();
+            let compatible_species = new_species_collection.iter_mut()
+                .find(|species| species.is_compatible(&orphan));
+
+            if let Some(compatible_species) = compatible_species {
+                compatible_species.insert(orphan);
+            } else {
+                let new_species = Species::new(orphan, local_next_species_id);
+                local_next_species_id += 1;
+                new_species_collection.push(new_species);
+                // add an entry for new species which does not have a previous iteration.
+                }
+            }
+
+        // Do a recount on the number of offspring per species
+        let new_population_size = 0; //TODO list_of_new_species.count_individuals();
+        let offspring_amounts = self.count_offsprings(conf.total_population_size - new_population_size).unwrap();
+        // If this assert fails, the next population size is going to be different
+        assert_eq!(offspring_amounts.iter().sum::<usize>(), conf.total_population_size - new_population_size);
+
+
+        //////////////////////////////////////////////
+        // POPULATION MANAGEMENT
+        // update the species population, based ont he population management algorithm.
+        for (species_i, (new_species, old_species_individuals))
+        in new_species_collection.iter_mut()
+            .zip(generated_individuals.old_species_individuals.into_iter())
+            .enumerate()
+        {
+            if species_i > self.species_collection.len() {
+                //TODO probably not needed because of .zip()
+                // Finished. The new species keep the entire population.
+                println!("POPULATION MANAGEMENT Finished. The new species keep the entire population.");
+                break;
+            }
+            println!("POPULATION MANAGEMENT {}", species_i);
+
+            // this empties the new_species list
+            println!("POPULATION MANAGEMENT {} transform", species_i);
+            let new_species_individuals = new_species.drain_individuals().collect();
+
+            println!("POPULATION MANAGEMENT {} lambda call", species_i);
+            // Create next population
+            let new_individuals = population_management(
+                new_species_individuals,
+                old_species_individuals,
+                offspring_amounts[species_i]);
+
+            new_species.set_individuals(new_individuals.into_iter());
+
+            println!("POPULATION MANAGEMENT {} done", species_i);
+        }
+
+
+        //////////////////////////////////////////////
+        // ASSERT SECTION
+        // check for duplicated species IDs
+        assert!(has_unique_elements(
+            new_species_collection.iter()
+                .map(|species| species.id)));
+
+        new_species_collection.cleanup();
+
+        // Assert species list size and number of individuals
+        let n_individuals: usize = new_species_collection.count_individuals();
+        if n_individuals != conf.total_population_size {
+            panic!("count_individuals(new_species_collection) = {} != {} = population_size",
+                n_individuals, conf.total_population_size);
+        }
+
+        //////////////////////////////////////////////
+        // CREATE THE NEXT GENUS
+        Genus::build_next_generation(new_species_collection, local_next_species_id)
     }
 }
